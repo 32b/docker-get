@@ -45,6 +45,7 @@ $ docker-get github.com/codemy/dockerfile/redis:master
     ---> 4d28b4b3ba29
     Successfully built 4d28b4b3ba29
     Successfully tagged github.com/codemy/dockerfile/redis:master
+    Successfully tagged github.com/codemy/dockerfile/redis:latest
 [docker-get] done
 
 $ docker run -it github.com/codemy/dockerfile/redis:master
