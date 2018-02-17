@@ -138,14 +138,6 @@ buildPackageForPath() {
     printf "[docker-get] %s\n" "done"
 }
 
-imageTagForTaggedURL() {
-    taggedURL=$1
-    taglessURL=$(stripTagSuffix "$taggedURL")
-    packagePath=$(packagePathOfPackageURL "$taglessURL")
-    tag=$(tagSuffix "$taggedURL")
-    imageTagForPackagePath "$packagePath" "$tag"
-}
-
 buildPackageForURL() {
     packageURL=$1
     tag=$2
