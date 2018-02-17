@@ -131,8 +131,8 @@ imageTagForTaggedURL() {
     taggedURL=$1
     taglessURL=$(stripTagSuffix "$taggedURL")
     packagePath=$(stripProtocol "$taglessURL")
-    tag=$(tagOrDefault "$(tagSuffix "$taggedURL")")
-    printf "%s" "$packagePath:$tag" | tr '[:upper:]' '[:lower:]'
+    tag=$(tagSuffix "$taggedURL")
+    imageTagForPackagePath "$packagePath" "$tag"
 }
 
 buildPackageForURL() {
