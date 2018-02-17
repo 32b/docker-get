@@ -41,7 +41,7 @@ stripDotGit() {
     printf "%s" "${1%.git}"
 }
 
-applyFixesToPackageTag() {
+inferPackageTagFromURL() {
     packageURL=$1
     tag=$2
     case $(packagePathOfPackageURL "$packageURL") in
@@ -182,7 +182,7 @@ buildPackageForTaggedURL() {
     shift
     taglessURL=$(stripTagSuffix "$taggedURL")
     tag=$(tagSuffix "$taggedURL")
-    packageTag=$(applyFixesToPackageTag "$taglessURL" "$tag")
+    packageTag=$(inferPackageTagFromURL "$taglessURL" "$tag")
     packageURL=$(applyFixesToPackageURL "$taglessURL" "$packageTag")
     ensurePackagePresentForURL "$packageURL" "$packageTag"
     buildPackageForURL "$packageURL" "$packageTag" "$@"
