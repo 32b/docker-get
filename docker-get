@@ -51,12 +51,9 @@ applyFixesToPackageTag() {
                 printf "%s" "$pathTag"
                 return
             fi
-            printf "%s" "$tag"
-            ;;
-        *)
-            printf "%s" "$tag"
             ;;
     esac
+    printf "%s" "$tag"
 }
 
 applyFixesToPackageURL() {
@@ -64,13 +61,11 @@ applyFixesToPackageURL() {
     tag=$(tagOrDefault "$2")
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
-            printf "%s" "$packageURL" |
-            sed "s/\/tree\/$tag\//\//"
-            ;;
-        *)
-            printf "%s" "$packageURL"
+            printf "%s" "$packageURL" | sed "s/\/tree\/$tag\//\//"
+            return
             ;;
     esac
+    printf "%s" "$packageURL"
 }
 
 packagePathOfPackageURL() {
