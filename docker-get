@@ -157,14 +157,14 @@ buildPackageForPath() {
     shift 2
     buildDir=$DOCKERPATH/$packagePath
     imageTag=$(imageTagForPackagePath "$packagePath" "$tag")
-    imageTagLatest=
-    if [ "$(tagOrDefault "$tag")" = master ]; then
-        imageTagLatest="-t $(imageTagForPackagePath "$packagePath" latest)"
-    fi
     printf "[docker-get] %s\n" "building $imageTag..."
     (
         cd "$buildDir"
-        dockerBuild "$imageTag" $imageTagLatest "$@"
+        if [ "$(tagOrDefault "$tag")" = master ]; then
+            dockerBuild "$imageTag" -t "$(imageTagForPackagePath "$packagePath" latest)" "$@"
+        else
+            dockerBuild "$imageTag" "$@"
+        fi  
     )
     printf "[docker-get] %s\n" "done"
 }
