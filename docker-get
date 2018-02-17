@@ -131,8 +131,8 @@ ensurePackagePresentForURL() {
     printf "[docker-get] %s\n" "fetching .$pathInRepository ($(tagOrDefault "$packageTag")) from $repositoryURL ..."
 
     ensureRepositoryUpToDate \
-        "$repositoryPath"\
-        "$repositoryURL" \
+        "$repositoryPath"    \
+        "$repositoryURL"     \
         ".$pathInRepository" \
         "$packageTag"
     printf "[docker-get] %s\n" "done"
