@@ -41,6 +41,38 @@ stripDotGit() {
     printf "%s" "${1%.git}"
 }
 
+applyFixesToPackageTag() {
+    packageURL=$1
+    tag=$2
+    case $(packagePathOfPackageURL "$packageURL") in
+        github.com/*)
+            pathTag=$(printf "%s" "$packageURL" | sed -E 's/^.*tree\/([^\/]+)\/.*$/\1/')
+            if [ -z "$tag" ] && [ ! "$pathTag" = "$packageURL" ]; then
+                printf "%s" "$pathTag"
+                return
+            fi
+            printf "%s" "$tag"
+            ;;
+        *)
+            printf "%s" "$tag"
+            ;;
+    esac
+}
+
+applyFixesToPackageURL() {
+    packageURL=$1
+    tag=$(tagOrDefault "$2")
+    case $(packagePathOfPackageURL "$packageURL") in
+        github.com/*)
+            printf "%s" "$packageURL" |
+            sed "s/\/tree\/$tag\//\//"
+            ;;
+        *)
+            printf "%s" "$packageURL"
+            ;;
+    esac
+}
+
 packagePathOfPackageURL() {
     packageURL=$1
     packagePath=$(stripProtocol "$packageURL")
@@ -151,8 +183,10 @@ buildPackageForTaggedURL() {
     shift
     taglessURL=$(stripTagSuffix "$taggedURL")
     tag=$(tagSuffix "$taggedURL")
-    ensurePackagePresentForURL "$taglessURL" "$tag"
-    buildPackageForURL "$taglessURL" "$tag" "$@"
+    packageTag=$(applyFixesToPackageTag "$taglessURL" "$tag")
+    packageURL=$(applyFixesToPackageURL "$taglessURL" "$packageTag")
+    ensurePackagePresentForURL "$packageURL" "$packageTag"
+    buildPackageForURL "$packageURL" "$packageTag" "$@"
 }
 
 pull() {
