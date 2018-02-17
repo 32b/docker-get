@@ -1,0 +1,163 @@
+#!/bin/sh -eu
+
+tagOrDefault() {
+    printf "%s" "${1:-master}"
+}
+
+ensureDockerPathSet() {
+    export DOCKERPATH=${DOCKERPATH:-$HOME/.docker-get}
+}
+
+ensureDockerPathExists() {
+    mkdir -p "$DOCKERPATH"
+}
+
+stripProtocol() {
+    printf "%s" "${1#*://}"
+}
+
+ensureProtocol() {
+    URL=$1
+    noProtocolURL=$(stripProtocol "$URL")
+    protocol=${URL%$noProtocolURL}
+    printf "%s" "${protocol:-https://}$noProtocolURL"
+}
+
+tagSuffix() {
+    taggedURL=$(stripProtocol "$1")
+    taglessURL=${taggedURL%:*}
+    tagSuffix=${taggedURL#$taglessURL}
+    tagSuffix=${tagSuffix#:}
+    printf "%s" "$tagSuffix"
+}
+
+stripTagSuffix() {
+    taggedURL=$1
+    tag=$(tagSuffix "$taggedURL")
+    printf "%s" "${taggedURL%:$tag}"
+}
+
+repositoryURLOfPackageURL() {
+    packageURL=$1
+    packageURL=$(ensureProtocol "$packageURL")
+    while [ "${packageURL%/*}" != "$packageURL" ]; do
+        if git ls-remote "$packageURL" HEAD >/dev/null 2>/dev/null
+        then
+            printf "%s" "$packageURL"
+            return
+        fi
+        packageURL=${packageURL%/*}
+    done
+    false   
+}
+
+refForTag() {
+    repositoryURL=$1
+    tag="$2"
+    git ls-remote "$repositoryURL" "$(tagOrDefault "$tag")" | sed 's/^.*refs\///'
+}
+
+ensureRepositoryUpToDate() {
+    repositoryPath=$1
+    repositoryURL=$2
+    pathInRepository="$3"
+    tag="$4"
+    ref=$(refForTag "$repositoryURL" "$tag")
+    refspec="+refs/$ref:refs/remotes/origin/$ref"
+    if [ -z "$ref" ]; then # assume it's a commit hash
+        ref="$tag"
+        refspec="$ref:refs/remotes/origin/$tag"
+    fi
+    (
+        exec 2>&1
+        mkdir -p "$repositoryPath"
+        cd "$repositoryPath"
+        if ! git rev-parse --is-inside-work-tree >/dev/null 2>/dev/null; then
+            git init
+            git remote add origin "$repositoryURL"
+        fi
+        git fetch -v --progress origin "$refspec"
+        git checkout -f --progress "refs/remotes/origin/$ref" -- "$pathInRepository"
+    )
+}
+
+ensurePackagePresentForURL() {
+    packageURL=$1
+    packageTag=$2
+    packagePath=$(stripProtocol "$packageURL")
+    repositoryURL=$(repositoryURLOfPackageURL "$packageURL")
+    packageURL=$(ensureProtocol "$packageURL")
+    pathInRepository=${packageURL#$repositoryURL}
+    repositoryPath=$DOCKERPATH/${packagePath%$pathInRepository}
+
+    printf "[docker-get] %s\n" "fetching .$pathInRepository ($(tagOrDefault "$packageTag")) from $repositoryURL ..."
+
+    ensureRepositoryUpToDate \
+        "$repositoryPath"\
+        "$repositoryURL" \
+        ".$pathInRepository" \
+        "$packageTag"
+    printf "[docker-get] %s\n" "done"
+}
+
+imageTagForPackagePath() {
+    packagePath=$1
+    tag=$2
+    imageTag=$packagePath:$(tagOrDefault "$tag")
+    printf "%s" "$imageTag" | tr '[:upper:]' '[:lower:]'
+}
+
+dockerBuild() {
+    imageTag="$1"
+    shift
+    docker build -t "$imageTag" "$@" .
+}
+
+buildPackageForPath() {
+    packagePath=$1
+    tag=$2
+    shift 2
+    buildDir=$DOCKERPATH/$packagePath
+    imageTag=$(imageTagForPackagePath "$packagePath" "$tag")
+    printf "[docker-get] %s\n" "building $imageTag..."
+    (
+        cd "$buildDir"
+        dockerBuild "$imageTag" "$@"
+    )
+    printf "[docker-get] %s\n" "done"
+}
+
+imageTagForTaggedURL() {
+    taggedURL=$1
+    taglessURL=$(stripTagSuffix "$taggedURL")
+    packagePath=$(stripProtocol "$taglessURL")
+    tag=$(tagOrDefault "$(tagSuffix "$taggedURL")")
+    printf "%s" "$packagePath:$tag" | tr '[:upper:]' '[:lower:]'
+}
+
+buildPackageForURL() {
+    packageURL=$1
+    tag=$2
+    shift 2
+    packagePath=$(stripProtocol "$packageURL")
+    buildPackageForPath "$packagePath" "$tag" "$@"
+}
+
+buildPackageForTaggedURL() {
+    taggedURL=$1
+    shift
+    taglessURL=$(stripTagSuffix "$taggedURL")
+    tag=$(tagSuffix "$taggedURL")
+    ensurePackagePresentForURL "$taglessURL" "$tag"
+    buildPackageForURL "$taglessURL" "$tag" "$@"
+}
+
+pull() {
+    taggedURL=$1
+    shift
+    buildPackageForTaggedURL "$taggedURL" "$@"
+}
+
+ensureDockerPathSet
+ensureDockerPathExists
+pull "$@"
