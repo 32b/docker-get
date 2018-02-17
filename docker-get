@@ -37,6 +37,17 @@ stripTagSuffix() {
     printf "%s" "${taggedURL%:$tag}"
 }
 
+stripDotGit() {
+    printf "%s" "${1%.git}"
+}
+
+packagePathOfPackageURL() {
+    packageURL=$1
+    packagePath=$(stripProtocol "$packageURL")
+    packagePath=$(stripDotGit "$packagePath")
+    printf "%s" "$packagePath"
+}
+
 repositoryURLOfPackageURL() {
     packageURL=$1
     packageURL=$(ensureProtocol "$packageURL")
@@ -84,7 +95,7 @@ ensureRepositoryUpToDate() {
 ensurePackagePresentForURL() {
     packageURL=$1
     packageTag=$2
-    packagePath=$(stripProtocol "$packageURL")
+    packagePath=$(packagePathOfPackageURL "$packageURL")
     repositoryURL=$(repositoryURLOfPackageURL "$packageURL")
     packageURL=$(ensureProtocol "$packageURL")
     pathInRepository=${packageURL#$repositoryURL}
@@ -130,7 +141,7 @@ buildPackageForPath() {
 imageTagForTaggedURL() {
     taggedURL=$1
     taglessURL=$(stripTagSuffix "$taggedURL")
-    packagePath=$(stripProtocol "$taglessURL")
+    packagePath=$(packagePathOfPackageURL "$taglessURL")
     tag=$(tagSuffix "$taggedURL")
     imageTagForPackagePath "$packagePath" "$tag"
 }
@@ -139,7 +150,7 @@ buildPackageForURL() {
     packageURL=$1
     tag=$2
     shift 2
-    packagePath=$(stripProtocol "$packageURL")
+    packagePath=$(packagePathOfPackageURL "$packageURL")
     buildPackageForPath "$packagePath" "$tag" "$@"
 }
 
