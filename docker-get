@@ -16,6 +16,10 @@ stripProtocol() {
     printf "%s" "${1#*://}"
 }
 
+stripTrailingSlash() {
+    printf "%s" "${1%/}"
+}
+
 ensureProtocol() {
     URL=$1
     noProtocolURL=$(stripProtocol "$URL")
@@ -71,6 +75,7 @@ applyFixesToPackageURL() {
 packagePathOfPackageURL() {
     packageURL=$1
     packagePath=$(stripProtocol "$packageURL")
+    packagePath=$(stripTrailingSlash "$packagePath")
     packagePath=$(stripDotGit "$packagePath")
     printf "%s" "$packagePath"
 }
