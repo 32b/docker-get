@@ -4,6 +4,12 @@ tagOrDefault() {
     printf "%s" "${1:-master}"
 }
 
+matches() {
+    value=$1
+    pattern=$2
+    printf "%s" "$value" | grep --only-matching -E "$pattern"
+}
+
 ensureDockerPathSet() {
     export DOCKERPATH=${DOCKERPATH:-$HOME/.docker-get}
 }
@@ -20,17 +26,23 @@ stripTrailingSlash() {
     printf "%s" "${1%/}"
 }
 
+isRepository() {
+    git ls-remote "$1" HEAD 2>/dev/null >/dev/null
+}
+
 ensureProtocol() {
     URL=$1
+    if matches "$URL" "[^:]+@[^:]+:.*\.git" >/dev/null; then
+        printf "%s" "$URL"
+        return
+    fi
     noProtocolURL=$(stripProtocol "$URL")
     protocol=${URL%$noProtocolURL}
     printf "%s" "${protocol:-https://}$noProtocolURL"
 }
 
 tagSuffix() {
-    taggedURL=$(stripProtocol "$1")
-    taglessURL=${taggedURL%:*}
-    tagSuffix=${taggedURL#$taglessURL}
+    tagSuffix=$(printf "%s" "$taggedURL" | grep -E --only-matching ':[^/]+$')
     tagSuffix=${tagSuffix#:}
     printf "%s" "$tagSuffix"
 }
@@ -42,12 +54,15 @@ stripTagSuffix() {
 }
 
 stripDotGit() {
-    printf "%s" "${1%.git}"
+    printf "%s" "${1%\.git}"
 }
 
 inferPackageTagFromURL() {
     packageURL=$1
     tag=$2
+    if isRepository "$packageURL"; then
+        return
+    fi
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
             pathTag=$(printf "%s" "$packageURL" | sed -E 's/^.*tree\/([^\/]+)\/.*$/\1/')
@@ -63,6 +78,11 @@ inferPackageTagFromURL() {
 applyFixesToPackageURL() {
     packageURL=$1
     tag=$(tagOrDefault "$2")
+    case "$packageURL" in
+        *:$tag)
+            packageURL=$(stripTagSuffix "$packageURL")
+            ;;
+    esac
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
             printf "%s" "$packageURL" | sed "s/\/tree\/$tag\//\//"
@@ -74,6 +94,15 @@ applyFixesToPackageURL() {
 
 packagePathOfPackageURL() {
     packageURL=$1
+    if matches "$packageURL" "[^:]+@[^:]+:.*\.git" >/dev/null; then
+        host=$(matches "$packageURL" '[^:]+@[^:]+')
+        host=${host#*@}
+        path=$(matches "$packageURL" ':.*\.git$')
+        path=${path#:}
+        path=${path%\.git}
+        printf "%s" "$host/$path"
+        return
+    fi
     packagePath=$(stripProtocol "$packageURL")
     packagePath=$(stripTrailingSlash "$packagePath")
     packagePath=$(stripDotGit "$packagePath")
@@ -84,8 +113,7 @@ repositoryURLOfPackageURL() {
     packageURL=$1
     packageURL=$(ensureProtocol "$packageURL")
     while [ "${packageURL%/*}" != "$packageURL" ]; do
-        if git ls-remote "$packageURL" HEAD >/dev/null 2>/dev/null
-        then
+        if isRepository "$packageURL"; then
             printf "%s" "$packageURL"
             return
         fi
@@ -185,10 +213,8 @@ buildPackageForURL() {
 buildPackageForTaggedURL() {
     taggedURL=$1
     shift
-    taglessURL=$(stripTagSuffix "$taggedURL")
-    tag=$(tagSuffix "$taggedURL")
-    packageTag=$(inferPackageTagFromURL "$taglessURL" "$tag")
-    packageURL=$(applyFixesToPackageURL "$taglessURL" "$packageTag")
+    packageTag=$(inferPackageTagFromURL "$taggedURL" "$(tagSuffix "$taggedURL")")
+    packageURL=$(applyFixesToPackageURL "$taggedURL" "$packageTag")
     ensurePackagePresentForURL "$packageURL" "$packageTag"
     buildPackageForURL "$packageURL" "$packageTag" "$@"
 }
