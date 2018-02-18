@@ -2,6 +2,17 @@
 
 Like `go get`, but for docker.
 
+<!-- TOC -->
+
+- [Features](#features)
+- [Get it](#get-it)
+- [Use it](#use-it)
+- [Example](#example)
+
+<!-- /TOC -->
+
+## Features
+
 - Pull* docker images from git repositories.
 - Repository URL + path in repo is mapped to the docker image name.
 - Git tags / branches / commit ids are mapped to docker image tags.
@@ -11,7 +22,29 @@ Like `go get`, but for docker.
 
 *(git pull and docker build)
 
-# Usage
+
+## Get it
+
+- Download [the latest version](https://raw.githubusercontent.com/32b/docker-get/latest/docker-get) and make it executable:
+
+    ```
+    curl -LO https://raw.githubusercontent.com/32b/docker-get/latest/docker-get
+    chmod +x ./docker-get
+    ```
+
+- A pre-built docker image is also available: 
+
+    ```
+    docker pull quay.io/sergey_grebenshchikov/docker-get:latest
+    ```
+
+- If you already have `docker-get` and just want to update the image:
+
+    ```
+    docker-get https://github.com/32b/docker-get
+    ```
+
+## Use it
 
 ```text
 docker-get URL[:TAG]
@@ -19,7 +52,7 @@ docker-get URL[:TAG]
 
 Any further arguments/flags are passed to `docker build`.
 
-# Example
+## Example
 
 ```bash
 $ docker-get github.com/codemy/dockerfile/redis:master
