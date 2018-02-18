@@ -16,7 +16,7 @@ replace() {
     print "$value" | sed -E "$pattern"
 }
 
-isSCPSyntaxURL() {
+scpSyntaxURL() {
     matches "$1" "^[^:@/]+@[^:/]+:.*$" >/dev/null
 }
 
@@ -69,7 +69,7 @@ isRepository() {
 
 ensureProtocol() {
     URL=$1
-    if isSCPSyntaxURL "$URL"; then
+    if scpSyntaxURL "$URL"; then
         print "$URL"
         return
     fi
@@ -132,7 +132,7 @@ applyFixesToPackageURL() {
 
 packagePathOfPackageURL() {
     packageURL=$1
-    if isSCPSyntaxURL "$packageURL"; then
+    if scpSyntaxURL "$packageURL"; then
         host=$(scpSyntaxURLHost "$packageURL")
         path=$(scpSyntaxURLPath "$packageURL")
         path=$(stripDotGit "$path")
