@@ -102,7 +102,7 @@ inferPackageTagFromURL() {
     packageURL=$1
     tag=$2
     case $(packagePathOfPackageURL "$packageURL") in
-        github.com/*)
+        github.com*)
             pathTag=$(replace "$packageURL" 's/^.*tree\/([^\/]+)\/.*$/\1/')
             if [ -z "$tag" ] && [ ! "$pathTag" = "$packageURL" ]; then
                 print "$pathTag"
@@ -122,7 +122,7 @@ applyFixesToPackageURL() {
             ;;
     esac
     case $(packagePathOfPackageURL "$packageURL") in
-        github.com/*)
+        github.com*)
             replace "$packageURL" "s/\/tree\/$tag\//\//"
             return
             ;;
