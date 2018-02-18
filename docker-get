@@ -123,7 +123,7 @@ applyFixesToPackageURL() {
     esac
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
-            print "$packageURL" | sed "s/\/tree\/$tag\//\//"
+            replace "$packageURL" "s/\/tree\/$tag\//\//"
             return
             ;;
     esac
