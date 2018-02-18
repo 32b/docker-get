@@ -43,6 +43,18 @@ ensureDockerPathExists() {
     mkdir -p "$DOCKERPATH"
 }
 
+ensureInsideDockerPath() {
+    realDockerPath=$(cd "$DOCKERPATH"; pwd -P)
+    realPwd=$(pwd -P)
+    case "$realPwd" in
+        "$realDockerPath"/*)
+            true
+            return
+            ;;
+    esac
+    false
+}
+
 stripProtocol() {
     print "${1#*://}"
 }
@@ -176,6 +188,7 @@ ensureRepositoryUpToDate() {
         exec 2>&1
         mkdir -p "$repositoryPath"
         cd "$repositoryPath"
+        ensureInsideDockerPath
         if ! inGitRepository; then
             git init
             git remote add origin "$repositoryURL"
@@ -213,6 +226,7 @@ imageTagForPackagePath() {
 dockerBuild() {
     imageTag=$1
     shift
+    ensureInsideDockerPath
     docker build -t "$imageTag" "$@" .
 }
 
