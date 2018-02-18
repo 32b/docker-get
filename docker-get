@@ -1,13 +1,38 @@
 #!/bin/sh -eu
 
-tagOrDefault() {
-    printf "%s" "${1:-master}"
+print() {
+    printf "%s" "$@"
 }
 
 matches() {
     value=$1
     pattern=$2
-    printf "%s" "$value" | grep --only-matching -E "$pattern"
+    print "$value" | grep --only-matching -E "$pattern"
+}
+
+replace() {
+    value=$1
+    pattern=$2
+    print "$value" | sed -E "$pattern"
+}
+
+isSCPSyntaxURL() {
+    matches "$1" "^[^:@/]+@[^:/]+:.*$" >/dev/null
+}
+
+scpSyntaxURLHost() {
+    URL="$1"
+    host=$(matches "$URL" '^[^:@/]+@[^:/]+:')
+    host=${host#*@}
+    host=${host%:}
+    print "$host"
+}
+
+scpSyntaxURLPath() {
+    URL="$1"
+    prefix=$(matches "$URL" '^[^:]+:')
+    path=${URL#$prefix}
+    print "$path"
 }
 
 ensureDockerPathSet() {
@@ -19,11 +44,11 @@ ensureDockerPathExists() {
 }
 
 stripProtocol() {
-    printf "%s" "${1#*://}"
+    print "${1#*://}"
 }
 
 stripTrailingSlash() {
-    printf "%s" "${1%/}"
+    print "${1%/}"
 }
 
 isRepository() {
@@ -32,47 +57,48 @@ isRepository() {
 
 ensureProtocol() {
     URL=$1
-    if matches "$URL" "[^:]+@[^:]+:.*\.git" >/dev/null; then
-        printf "%s" "$URL"
+    if isSCPSyntaxURL "$URL"; then
+        print "$URL"
         return
     fi
     noProtocolURL=$(stripProtocol "$URL")
     protocol=${URL%$noProtocolURL}
-    printf "%s" "${protocol:-https://}$noProtocolURL"
+    print "${protocol:-https://}$noProtocolURL"
+}
+
+tagOrDefault() {
+    print "${1:-master}"
 }
 
 tagSuffix() {
-    tagSuffix=$(printf "%s" "$taggedURL" | grep -E --only-matching ':[^/]+$')
+    tagSuffix=$(matches "$taggedURL" ':[^/:]+$')
     tagSuffix=${tagSuffix#:}
-    printf "%s" "$tagSuffix"
+    print "$tagSuffix"
 }
 
 stripTagSuffix() {
     taggedURL=$1
     tag=$(tagSuffix "$taggedURL")
-    printf "%s" "${taggedURL%:$tag}"
+    print "${taggedURL%:$tag}"
 }
 
 stripDotGit() {
-    printf "%s" "${1%\.git}"
+    replace "$1" 's/\.git($|\/)/\1/'
 }
 
 inferPackageTagFromURL() {
     packageURL=$1
     tag=$2
-    if isRepository "$packageURL"; then
-        return
-    fi
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
-            pathTag=$(printf "%s" "$packageURL" | sed -E 's/^.*tree\/([^\/]+)\/.*$/\1/')
+            pathTag=$(replace "$packageURL" 's/^.*tree\/([^\/]+)\/.*$/\1/')
             if [ -z "$tag" ] && [ ! "$pathTag" = "$packageURL" ]; then
-                printf "%s" "$pathTag"
+                print "$pathTag"
                 return
             fi
             ;;
     esac
-    printf "%s" "$tag"
+    print "$tag"
 }
 
 applyFixesToPackageURL() {
@@ -85,28 +111,26 @@ applyFixesToPackageURL() {
     esac
     case $(packagePathOfPackageURL "$packageURL") in
         github.com/*)
-            printf "%s" "$packageURL" | sed "s/\/tree\/$tag\//\//"
+            print "$packageURL" | sed "s/\/tree\/$tag\//\//"
             return
             ;;
     esac
-    printf "%s" "$packageURL"
+    print "$packageURL"
 }
 
 packagePathOfPackageURL() {
     packageURL=$1
-    if matches "$packageURL" "[^:]+@[^:]+:.*\.git" >/dev/null; then
-        host=$(matches "$packageURL" '[^:]+@[^:]+')
-        host=${host#*@}
-        path=$(matches "$packageURL" ':.*\.git$')
-        path=${path#:}
-        path=${path%\.git}
-        printf "%s" "$host/$path"
+    if isSCPSyntaxURL "$packageURL"; then
+        host=$(scpSyntaxURLHost "$packageURL")
+        path=$(scpSyntaxURLPath "$packageURL")
+        path=$(stripDotGit "$path")
+        print "$host/$path"
         return
     fi
     packagePath=$(stripProtocol "$packageURL")
     packagePath=$(stripTrailingSlash "$packagePath")
     packagePath=$(stripDotGit "$packagePath")
-    printf "%s" "$packagePath"
+    print "$packagePath"
 }
 
 repositoryURLOfPackageURL() {
@@ -114,7 +138,7 @@ repositoryURLOfPackageURL() {
     packageURL=$(ensureProtocol "$packageURL")
     while [ "${packageURL%/*}" != "$packageURL" ]; do
         if isRepository "$packageURL"; then
-            printf "%s" "$packageURL"
+            print "$packageURL"
             return
         fi
         packageURL=${packageURL%/*}
@@ -126,6 +150,15 @@ refForTag() {
     repositoryURL=$1
     tag=$2
     git ls-remote "$repositoryURL" "$(tagOrDefault "$tag")" | sed 's/^.*refs\///'
+}
+
+inGitRepository() {
+    (
+        exec 1> /dev/null 
+        exec 2> /dev/null
+        git rev-parse --show-prefix &&
+        [ -z "$(git rev-parse --show-prefix)" ]
+    )
 }
 
 ensureRepositoryUpToDate() {
@@ -143,7 +176,7 @@ ensureRepositoryUpToDate() {
         exec 2>&1
         mkdir -p "$repositoryPath"
         cd "$repositoryPath"
-        if ! git rev-parse --is-inside-work-tree >/dev/null 2>/dev/null; then
+        if ! inGitRepository; then
             git init
             git remote add origin "$repositoryURL"
         fi
@@ -162,7 +195,6 @@ ensurePackagePresentForURL() {
     repositoryPath=$DOCKERPATH/${packagePath%$pathInRepository}
 
     printf "[docker-get] %s\n" "fetching .$pathInRepository ($(tagOrDefault "$packageTag")) from $repositoryURL ..."
-
     ensureRepositoryUpToDate \
         "$repositoryPath"    \
         "$repositoryURL"     \
@@ -175,7 +207,7 @@ imageTagForPackagePath() {
     packagePath=$1
     tag=$2
     imageTag=$packagePath:$(tagOrDefault "$tag")
-    printf "%s" "$imageTag" | tr '[:upper:]' '[:lower:]'
+    print "$imageTag" | tr '[:upper:]' '[:lower:]'
 }
 
 dockerBuild() {
@@ -219,7 +251,7 @@ buildPackageForTaggedURL() {
     buildPackageForURL "$packageURL" "$packageTag" "$@"
 }
 
-pull() {
+get() {
     taggedURL=$1
     shift
     buildPackageForTaggedURL "$taggedURL" "$@"
@@ -227,4 +259,4 @@ pull() {
 
 ensureDockerPathSet
 ensureDockerPathExists
-pull "$@"
+get "$@"
