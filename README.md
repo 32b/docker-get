@@ -2,14 +2,11 @@
 
 Like `go get`, but for docker.
 
-<!-- TOC -->
-
 - [Features](#features)
 - [Get it](#get-it)
 - [Use it](#use-it)
 - [Example](#example)
-
-<!-- /TOC -->
+- [Comments](https://github.com/32b/docker-get/issues/1)
 
 ## Features
 
@@ -108,3 +105,7 @@ $ tree $DOCKERPATH
                     ├── 3gb-ram.conf
                     └── 5gb-ram.conf
 ```
+
+## Comments
+
+Feel free to [leave a comment](https://github.com/32b/docker-get/issues/1) or create an issue.
