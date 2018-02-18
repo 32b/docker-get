@@ -2,9 +2,10 @@
 
 Like `go get`, but for docker.
 
-- Pull* docker images from git repositories. 
+- Pull* docker images from git repositories.
 - Repository URL + path in repo is mapped to the docker image name.
 - Git tags / branches / commit ids are mapped to docker image tags.
+- Supports any repository your `git` can pull.
 - Git cache in `$DOCKERPATH` (by default `~/.docker-get`).
 - Portable: written in 100% POSIX sh
 
