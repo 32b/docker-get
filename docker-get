@@ -83,7 +83,7 @@ tagOrDefault() {
 }
 
 tagSuffix() {
-    tagSuffix=$(matches "$taggedURL" ':[^/:]+$')
+    tagSuffix=$(matches "$taggedURL" ':[^/:]+$' || true)
     tagSuffix=${tagSuffix#:}
     print "$tagSuffix"
 }
@@ -116,11 +116,7 @@ inferPackageTagFromURL() {
 applyFixesToPackageURL() {
     packageURL=$1
     tag=$(tagOrDefault "$2")
-    case "$packageURL" in
-        *:$tag)
-            packageURL=$(stripTagSuffix "$packageURL")
-            ;;
-    esac
+    packageURL=$(stripTagSuffix "$packageURL")
     case $(packagePathOfPackageURL "$packageURL") in
         github.com*)
             replace "$packageURL" "s/\/tree\/$tag\//\//"
